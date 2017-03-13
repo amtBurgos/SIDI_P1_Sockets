@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="Ejemplo-Build-xml" default="compile" basedir=".">
+	<description>Fichero build.xml para ANT</description>
+
+	<!-- Properties of the project... -->
+
+	<!-- Dir properties -->
+	<property name="src.dir" value="${basedir}/src" />
+	<property name="doc.dir" value="${basedir}/doc" />
+
+	<!-- ==================== Definition of CLASSPATH ====================================== -->
+	<path id="compile.classpath">
+		<pathelement location="${build.dir}" />
+	</path>
+
+	<!-- =============== Development Targets ================================= -->
+	<target name="all" description="Development targets." depends="clean, prepare, javadoc" />
+
+	<!-- ==================== Prepare Target ==================================== -->
+	<target description="Create directories" name="prepare">
+		<mkdir dir="${doc.dir}" />
+	</target>
+
+	<!-- ==================== Clean Target ==================================== -->
+	<!-- Delete the previous files from directories, to rebuild the complete products. -->
+
+	<target name="clean" description="Delete the directories with generated products .">
+		<delete dir="${doc.dir}" />
+	</target>
+
+	<!-- ==================== Javadoc Target =============================================== -->
+	<target name="javadoc" depends="clean" description="Generate the application doc.">
+		<javadoc sourcepath="${src.dir}" destdir="${doc.dir}" encoding="UTF-8"/>
+	</target>
+	
+</project>
