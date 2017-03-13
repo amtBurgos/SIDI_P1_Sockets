@@ -105,7 +105,7 @@ public class ChatClientImpl implements ChatClient {
 	private class ChatClientListener implements Runnable {
 
 		/**
-		 * Ejecucion del hilo
+		 * Ejecucion del hilo.
 		 */
 		public void run() {
 			// TODO Inicializar flujos y mostrar mensajes
