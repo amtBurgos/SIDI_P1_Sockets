@@ -77,6 +77,7 @@ public class ChatClientImpl implements ChatClient {
 	 * 
 	 * @return true/false si ha arrancado o no
 	 */
+	@SuppressWarnings("resource")
 	public boolean start() {
 		// Creamos socket del cliente
 		Socket clientSocket = null;
@@ -174,6 +175,8 @@ public class ChatClientImpl implements ChatClient {
 					cliente.sendMessage(banManager(message, ChatMessage.MessageType.BAN));
 				} else if (message.toLowerCase().matches("^\\s*unban\\s+\\S+\\s*")) {
 					cliente.sendMessage(banManager(message, ChatMessage.MessageType.UNBAN));
+				} else if (message.toLowerCase().matches("^\\s*shutdown\\s*")) {
+					cliente.sendMessage(banManager(message, ChatMessage.MessageType.SHUTDOWN));
 				} else {
 					cliente.sendMessage(new ChatMessage(id, ChatMessage.MessageType.MESSAGE, message));
 				}
