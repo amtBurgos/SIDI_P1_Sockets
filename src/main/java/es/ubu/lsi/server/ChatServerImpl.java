@@ -3,15 +3,11 @@
  */
 package es.ubu.lsi.server;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 
@@ -85,6 +81,7 @@ public class ChatServerImpl implements ChatServer {
 			usersList = new ArrayList<ChatServerImpl.ServerThreadForClient>();
 			sdf = new SimpleDateFormat("HH:mm:ss");
 			System.out.println("Servidor iniciado...");
+			System.out.println(sdf.toString());
 		} catch (IOException e) {
 			System.err.println("No se puede iniciar el servidor.");
 		}
@@ -105,7 +102,7 @@ public class ChatServerImpl implements ChatServer {
 	}
 
 	/**
-	 * Apaga correctamente el servidor.
+	 * Apaga correctamente el servidor, finalizando los clientes que haya.
 	 */
 	public void shutdown() {
 		if (usersList.size() != 0) {
@@ -134,8 +131,23 @@ public class ChatServerImpl implements ChatServer {
 	 * @param id
 	 */
 	public void remove(int id) {
-		// TODO Auto-generated method stub
-
+		ServerThreadForClient cliente = null;
+		boolean flag = false;
+		if (usersList.size() != 0) {
+			for (ServerThreadForClient client : usersList) {
+				if (client.getClientId() == id) {
+					cliente = client;
+					flag = true;
+					break;
+				}
+			}
+			if (flag) {
+				usersList.remove(cliente);
+				System.out.println("El cliente no se encuentra conectado.");
+			}
+		} else {
+			System.out.println("No hay clientes conectados.");
+		}
 	}
 
 	/**
@@ -168,7 +180,8 @@ public class ChatServerImpl implements ChatServer {
 	 *            argumentos pasados
 	 */
 	public static void main(String[] args) {
-		// TODO Instanciar e inicializar el servidor
+		ChatServerImpl server = new ChatServerImpl(DEFAULT_PORT);
+		server.startup();
 	}
 
 	/**
@@ -198,10 +211,10 @@ public class ChatServerImpl implements ChatServer {
 		 */
 		private ObjectOutputStream out;
 
-		/**
-		 * Socket del cliente.
-		 */
-		private Socket clientSocket;
+		// /**
+		// * Socket del cliente.
+		// */
+		// private Socket clientSocket;
 
 		/**
 		 * Si el usuario está baneado o no.
@@ -214,7 +227,7 @@ public class ChatServerImpl implements ChatServer {
 		private boolean finalizado;
 
 		public ServerThreadForClient(Socket clientSocket, int id) {
-			this.clientSocket = clientSocket;
+			// this.clientSocket = clientSocket;
 			this.id = id;
 			this.banned = false;
 			try {
