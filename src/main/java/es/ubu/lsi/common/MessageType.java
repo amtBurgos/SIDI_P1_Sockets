@@ -5,6 +5,7 @@ package es.ubu.lsi.common;
  * 
  * @author Raúl Marticorena
  * @author Joaquin P. Seco
+ * @author Andres Miguel Teran - Francisco Saiz Güemes
  */
 public enum MessageType {
 	/** Message. */
@@ -12,5 +13,9 @@ public enum MessageType {
 	/** Shutdown server. */
 	SHUTDOWN,		
 	/** Logout client. */
-	LOGOUT;		
+	LOGOUT,
+	/**Ban user.*/
+	BAN,
+	/**Unban user. */
+	UNBAN;		
 }

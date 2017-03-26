@@ -6,11 +6,17 @@ package es.ubu.lsi.server;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
+import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 
 import es.ubu.lsi.common.ChatMessage;
+import es.ubu.lsi.common.ChatMessage.MessageType;
 
 /**
  * Clase para el chat del servidor.
@@ -46,29 +52,69 @@ public class ChatServerImpl implements ChatServer {
 	private boolean alive;
 
 	/**
-	 * Construye un cliente.
+	 * Lista de usuarios conectados.
+	 */
+	private ArrayList<ServerThreadForClient> usersList;
+
+	/**
+	 * Construye un servidor.
 	 * 
 	 * @param port
 	 *            puerto para establecer conexion
 	 */
 	public ChatServerImpl(int port) {
-		// TODO Validar si el puerto esgta disponible y sino poner por defecto
-		this.port = port;
+		// Validar si el puerto esta disponible y sino poner por defecto
+		try {
+			Socket test = new Socket("localhost", port);
+			this.port = port;
+			test.close();
+		} catch (Exception e) {
+			this.port = DEFAULT_PORT;
+		}
 	}
 
 	/**
 	 * Espera y acepta peticiones de los clientes.
 	 */
 	public void startup() {
-		// TODO Auto-generated method stub
+		ServerSocket serverSocket = null;
+		Socket clientSocket = null;
+		try {
+			serverSocket = new ServerSocket(port);
+			alive = true;
+			usersList = new ArrayList<ChatServerImpl.ServerThreadForClient>();
+			sdf = new SimpleDateFormat("HH:mm:ss");
+			System.out.println("Servidor iniciado...");
+		} catch (IOException e) {
+			System.err.println("No se puede iniciar el servidor.");
+		}
 
+		while (alive) {
+			try {
+				clientSocket = serverSocket.accept();
+				System.out.println("Cliente aceptado.");
+				ServerThreadForClient clientThread = new ServerThreadForClient(clientSocket, ++clientId);
+				usersList.add(clientThread);
+				clientThread.start();
+			} catch (IOException e) {
+				System.err.println("Cliente no aceptado.");
+			}
+		}
+		// Apagar el servidor
+		System.exit(1);
 	}
 
 	/**
 	 * Apaga correctamente el servidor.
 	 */
 	public void shutdown() {
-		// TODO Auto-generated method stub
+		if (usersList.size() != 0) {
+			for (ServerThreadForClient client : usersList) {
+				client.finalizarCliente();
+			}
+		}
+		System.out.println("Apagando servidor...");
+		alive = false;
 	}
 
 	/**
@@ -90,6 +136,29 @@ public class ChatServerImpl implements ChatServer {
 	public void remove(int id) {
 		// TODO Auto-generated method stub
 
+	}
+
+	/**
+	 * Banea o desbanea a un usuario.
+	 * 
+	 * @param username
+	 *            nombre del usuario a banear o desbanear
+	 * @param operacion
+	 *            banear o desbanear
+	 * @return true/false si se ha realizado la operación
+	 */
+	public boolean banUnbanUser(String username, ChatMessage.MessageType operacion) {
+		boolean realizado = false;
+		boolean banned = (operacion == ChatMessage.MessageType.BAN) ? true : false;
+		for (ServerThreadForClient client : usersList) {
+			if (client.getUsername().equalsIgnoreCase(username)) {
+				client.setBanned(banned);
+				realizado = true;
+			}
+		}
+		if (!realizado)
+			System.out.println("El usuario a banear o desbanear no existe.");
+		return realizado;
 	}
 
 	/**
@@ -119,35 +188,137 @@ public class ChatServerImpl implements ChatServer {
 		 */
 		private String username;
 
-		public ServerThreadForClient(int id, String username) {
+		/**
+		 * Canal de entrada.
+		 */
+		private ObjectInputStream in;
+
+		/**
+		 * Canal de salida.
+		 */
+		private ObjectOutputStream out;
+
+		/**
+		 * Socket del cliente.
+		 */
+		private Socket clientSocket;
+
+		/**
+		 * Si el usuario está baneado o no.
+		 */
+		private boolean banned;
+
+		/**
+		 * Booleano para ver si ha acabado el cliente.
+		 */
+		private boolean finalizado;
+
+		public ServerThreadForClient(Socket clientSocket, int id) {
+			this.clientSocket = clientSocket;
 			this.id = id;
-			this.username = username;
+			this.banned = false;
+			try {
+				this.out = new ObjectOutputStream(clientSocket.getOutputStream());
+				this.in = new ObjectInputStream(clientSocket.getInputStream());
+			} catch (IOException e) {
+				System.err.println("No se puede establecer comunicación cliente-servidor");
+			}
+			finalizado = false;
 		}
 
 		/**
-		 * Inicializa los canales de entrada y salida y escribe en la consola el
-		 * echo del servidor.
+		 * Inicializa los canales de entrada y salida para la comunicación del
+		 * cliente y el servidor.
 		 */
 		@Override
 		public void run() {
-			// try {
-			// PrintWriter out = new PrintWriter(s.getOutputStream(), true);
-			// BufferedReader in = new BufferedReader(new
-			// InputStreamReader(s.getInputStream()));
-			// // Todo lo que ha entrado por el canal de entrada
-			// String inputLine;
-			// // Lo escribimos
-			//
-			// while ((inputLine = in.readLine()) != null) {
-			// out.println(inputLine);
-			// // Escribimos en la consola del servidor lo que hemos
-			// // recibido
-			// System.out.println(inputLine);
-			// }
-			// } catch (IOException e) {
-			// e.printStackTrace();
-			// }
+			while (!finalizado) {
+				ChatMessage message = null;
+				try {
+					message = (ChatMessage) in.readObject();
+				} catch (ClassNotFoundException e) {
+					e.printStackTrace();
+				} catch (IOException e) {
+					System.err.println("No se puede recuperar el mensaje");
+				}
+				switch (message.getType()) {
+				case LOGOUT:
+					setFinalizado(true);
+					remove(getClientId());
+					break;
+				case MESSAGE:
+					if (!banned)
+						broadcast(message);
+					break;
+				case BAN:
+					if (banUnbanUser(message.getMessage(), ChatMessage.MessageType.BAN))
+						broadcast(new ChatMessage(getClientId(), MessageType.MESSAGE,
+								"# " + getUsername() + " baneó a " + message.getMessage()));
+					break;
+				case UNBAN:
+					if (banUnbanUser(message.getMessage(), ChatMessage.MessageType.UNBAN))
+						broadcast(new ChatMessage(getClientId(), MessageType.MESSAGE,
+								"# " + getUsername() + " desbaneó a " + message.getMessage()));
+					break;
+				case SHUTDOWN:
+					shutdown();
+				}
+			}
+			finalizarCliente();
+		}
 
+		/**
+		 * Cambia el valor para el bucle del hilo del cliente.
+		 * 
+		 * @param finalizado
+		 *            true/false
+		 */
+		public void setFinalizado(boolean finalizado) {
+			this.finalizado = finalizado;
+		}
+
+		/**
+		 * Devuelve el id del cliente.
+		 * 
+		 * @return client id
+		 */
+		public int getClientId() {
+			return id;
+		}
+
+		/**
+		 * Devuelve el nombre de usuario.
+		 * 
+		 * @return username
+		 */
+		public String getUsername() {
+			return this.username;
+		}
+
+		/**
+		 * Banea a un usuario.
+		 * 
+		 * @param banned
+		 *            true/false
+		 */
+		public void setBanned(boolean banned) {
+			this.banned = banned;
+		}
+
+		/**
+		 * Finaliza el hilo del cliente.
+		 */
+		public void finalizarCliente() {
+			try {
+				this.out.close();
+				this.in.close();
+			} catch (IOException e) {
+				System.err.println("No se puede eliminar conexión con el cliente.");
+			} finally {
+				System.out.println("Desconectando cliente: " + getUsername() + ".");
+				// Cerramos el hilo
+				this.interrupt();
+			}
 		}
 	}
 }

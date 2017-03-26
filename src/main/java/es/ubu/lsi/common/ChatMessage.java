@@ -8,6 +8,7 @@ import java.io.*;
  * 
  * @author Raúl Marticorena
  * @author Joaquin P. Seco
+ * @author Andres Miguel Teran - Francisco Saiz Güemes
  *
  */
 public class ChatMessage implements Serializable {
@@ -27,7 +28,11 @@ public class ChatMessage implements Serializable {
 		/** Shutdown server. */
 		SHUTDOWN,		
 		/** Logout client. */
-		LOGOUT;		
+		LOGOUT,
+		/**Ban user.*/
+		BAN,
+		/**Unban user. */
+		UNBAN;		
 	}
 	
 	/** Type. */

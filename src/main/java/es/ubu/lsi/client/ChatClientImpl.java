@@ -11,6 +11,7 @@ import java.net.UnknownHostException;
 import java.util.Scanner;
 
 import es.ubu.lsi.common.ChatMessage;
+import es.ubu.lsi.common.ChatMessage.MessageType;
 
 /**
  * Clase para el chat del cliente.
@@ -139,10 +140,12 @@ public class ChatClientImpl implements ChatClient {
 	 *            argumentos
 	 */
 	public static void main(String[] args) {
+		// Variables para la conexión
 		String hostName = "localhost";
 		int portNumber = 1500;
 		String username = null;
 
+		// Manejo de argumentos
 		if (args.equals(null) || args.length != 2) {
 			System.out.println(
 					"Por favor incluye una de las dos opciones de los siguientes argumentos en el mismo orden que se cita:");
@@ -156,28 +159,58 @@ public class ChatClientImpl implements ChatClient {
 			username = args[1];
 		}
 
+		// Listener de mensajes para el cliente
 		ChatClientImpl cliente = new ChatClientImpl(hostName, portNumber, username);
 
 		if (cliente.start()) {
 			Scanner scan = new Scanner(System.in);
 			while (carryOn) {
-				System.out.print("--> ");
+				System.out.print("> ");
 				String message = scan.nextLine();
-				if (message.equalsIgnoreCase("SHUTDOWN")) {
-					cliente.sendMessage(new ChatMessage(id, ChatMessage.MessageType.SHUTDOWN, ""));
-					carryOn = false;
-				} else if (message.equalsIgnoreCase("LOGOUT")) {
+				if (message.equalsIgnoreCase("LOGOUT")) {
 					cliente.sendMessage(new ChatMessage(id, ChatMessage.MessageType.LOGOUT, ""));
 					carryOn = false;
+				} else if (message.toLowerCase().matches("^\\s*ban\\s+\\S+\\s*")) {
+					cliente.sendMessage(banManager(message, ChatMessage.MessageType.BAN));
+				} else if (message.toLowerCase().matches("^\\s*unban\\s+\\S+\\s*")) {
+					cliente.sendMessage(banManager(message, ChatMessage.MessageType.UNBAN));
 				} else {
 					cliente.sendMessage(new ChatMessage(id, ChatMessage.MessageType.MESSAGE, message));
 				}
 			}
+			System.out.println("Desconectando. Pulsa intro tecla para cerrar...");
+			scan.nextLine();
 			scan.close();
-			""
 		} else {
-			System.err.println("No se puede arrancar el cliente");
+			System.err.println("No se puede arrancar el cliente.");
 		}
+		System.exit(1);
+	}
+
+	/**
+	 * Crea el tipo de mensaje a enviar con el nombre de usuario a banear o
+	 * desbanear.
+	 * 
+	 * @param message
+	 *            mensaje con el comando
+	 * @param banType
+	 *            tipo de baneo
+	 * @return objeto ChatMessage con los datos
+	 */
+	private static ChatMessage banManager(String message, MessageType banType) {
+		String[] command = message.split("\\s");
+		String username = null;
+		if (command.length > 2) {
+			int counter = 0;
+			for (String word : command) {
+				if (!word.equals("\\s")) {
+					counter++;
+				}
+				if (counter == 2)
+					username = word;
+			}
+		}
+		return new ChatMessage(id, banType, username);
 	}
 
 	/**
