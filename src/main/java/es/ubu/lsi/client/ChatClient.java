@@ -21,7 +21,7 @@ public interface ChatClient {
 	public boolean start();
 
 	/**
-	 * Mandar un mensaje.
+	 * Mandar un mensaje desde el cliente.
 	 * 
 	 * @param msg
 	 *            mensaje a mandar

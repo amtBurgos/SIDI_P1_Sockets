@@ -3,9 +3,12 @@
  */
 package es.ubu.lsi.client;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.Scanner;
 
 import es.ubu.lsi.common.ChatMessage;
 
@@ -35,15 +38,25 @@ public class ChatClientImpl implements ChatClient {
 	/**
 	 * Condicionante para dejar de enviar.
 	 */
-	private boolean carryOn = true;
+	private static boolean carryOn = true;
 
 	/**
 	 * Id del usuario.
 	 */
-	private int id;
+	private static int id;
 
 	/**
-	 * Construye un servidor.
+	 * Canal de entrada.
+	 */
+	private ObjectInputStream in;
+
+	/**
+	 * Canal de salida.
+	 */
+	private ObjectOutputStream out;
+
+	/**
+	 * Construye un cliente.
 	 * 
 	 * @param server
 	 *            ip del servidor
@@ -64,8 +77,29 @@ public class ChatClientImpl implements ChatClient {
 	 * @return true/false si ha arrancado o no
 	 */
 	public boolean start() {
-		// TODO Auto-generated method stub
-		return false;
+		// Creamos socket del cliente
+		Socket clientSocket = null;
+
+		try {
+			clientSocket = new Socket(server, port);
+
+			// Inicializar canales de entrada y salida
+			this.out = new ObjectOutputStream(clientSocket.getOutputStream());
+			this.in = new ObjectInputStream(clientSocket.getInputStream());
+
+			// Lanzamos el hilo del cliente
+			new Thread(new ChatClientListener()).start();
+
+			// Informamos de la conexion
+			System.out.println("Conexión satisfactoria");
+		} catch (UnknownHostException e) {
+			System.err.println("No se puede conectar con el servidor: " + server);
+			return false;
+		} catch (IOException e) {
+			System.err.println("No se puede establecer conexción entrada/salida con:" + server);
+			return false;
+		}
+		return true;
 	}
 
 	/**
@@ -75,15 +109,27 @@ public class ChatClientImpl implements ChatClient {
 	 *            mensaje a mandar
 	 */
 	public void sendMessage(ChatMessage msg) {
-		// TODO Auto-generated method stub
-
+		try {
+			this.out.writeObject(msg);
+		} catch (IOException e) {
+			System.out.println("No se puede enviar el mensaje");
+		}
 	}
 
 	/**
 	 * Desconecta el cliente.
 	 */
 	public void disconnect() {
-		// TODO Auto-generated method stub
+		try {
+			if (this.in != null) {
+				this.in.close();
+			}
+			if (this.out != null) {
+				this.out.close();
+			}
+		} catch (IOException e) {
+			System.err.println("Error al desconectar cliente '" + this.username + "'.");
+		}
 	}
 
 	/**
@@ -93,7 +139,45 @@ public class ChatClientImpl implements ChatClient {
 	 *            argumentos
 	 */
 	public static void main(String[] args) {
+		String hostName = "localhost";
+		int portNumber = 1500;
+		String username = null;
 
+		if (args.equals(null) || args.length != 2) {
+			System.out.println(
+					"Por favor incluye una de las dos opciones de los siguientes argumentos en el mismo orden que se cita:");
+			System.out.println("1º. IP del servidor y nombre de usuario.");
+			System.out.println("2º. nombre de usuario.");
+			System.exit(1);
+		} else if (args.length == 1) {
+			username = args[0];
+		} else if (args.length == 2) {
+			hostName = args[0];
+			username = args[1];
+		}
+
+		ChatClientImpl cliente = new ChatClientImpl(hostName, portNumber, username);
+
+		if (cliente.start()) {
+			Scanner scan = new Scanner(System.in);
+			while (carryOn) {
+				System.out.print("--> ");
+				String message = scan.nextLine();
+				if (message.equalsIgnoreCase("SHUTDOWN")) {
+					cliente.sendMessage(new ChatMessage(id, ChatMessage.MessageType.SHUTDOWN, ""));
+					carryOn = false;
+				} else if (message.equalsIgnoreCase("LOGOUT")) {
+					cliente.sendMessage(new ChatMessage(id, ChatMessage.MessageType.LOGOUT, ""));
+					carryOn = false;
+				} else {
+					cliente.sendMessage(new ChatMessage(id, ChatMessage.MessageType.MESSAGE, message));
+				}
+			}
+			scan.close();
+			""
+		} else {
+			System.err.println("No se puede arrancar el cliente");
+		}
 	}
 
 	/**
@@ -108,22 +192,16 @@ public class ChatClientImpl implements ChatClient {
 		 * Ejecucion del hilo.
 		 */
 		public void run() {
-			// TODO Inicializar flujos y mostrar mensajes
+			String message;
 			try {
-				PrintWriter out = new PrintWriter(s.getOutputStream(), true);
-				BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
-				// Todo lo que ha entrado por el canal de entrada
-				String inputLine;
-				// Lo escribimos
-
-				while ((inputLine = in.readLine()) != null) {
-					out.println(inputLine);
-					// Escribimos en la consola del servidor lo que hemos
-					// recibido
-					System.out.println("> " + inputLine);
+				while ((message = (String) in.readObject()) != null) {
+					// Imprimimos lo que recibimos del servidor
+					System.out.println("> " + message);
 				}
 			} catch (IOException e) {
-				e.printStackTrace();
+				System.err.println("No se obtiene respuesta del servidor: " + server);
+			} catch (ClassNotFoundException e) {
+				System.err.println("Error al recibir mensaje.");
 			}
 		}
 
