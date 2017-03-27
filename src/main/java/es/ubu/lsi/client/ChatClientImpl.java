@@ -206,7 +206,6 @@ public class ChatClientImpl implements ChatClient {
 	 */
 	private static ChatMessage banManager(String message, MessageType banType) {
 		String[] command = message.split("\\s");
-		System.out.println("Longitud: "+command.length);
 		String username = null;
 		if (command.length >= 2) {
 			int counter = 0;
@@ -219,7 +218,6 @@ public class ChatClientImpl implements ChatClient {
 					}
 				}
 			}
-		System.out.println("Mensaje enviado: "+ username);
 		}
 		return new ChatMessage(id, banType, username);
 	}
