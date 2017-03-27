@@ -92,6 +92,9 @@ public class ChatClientImpl implements ChatClient {
 			// Lanzamos el hilo del cliente
 			new Thread(new ChatClientListener()).start();
 
+			// Indicamos el nombre de usuario
+			out.writeObject(username);
+
 			// Informamos de la conexion
 			System.out.println("Conexión satisfactoria");
 		} catch (UnknownHostException e) {
@@ -187,6 +190,7 @@ public class ChatClientImpl implements ChatClient {
 		} else {
 			System.err.println("No se puede arrancar el cliente.");
 		}
+		cliente.disconnect();
 		System.exit(1);
 	}
 
@@ -202,16 +206,20 @@ public class ChatClientImpl implements ChatClient {
 	 */
 	private static ChatMessage banManager(String message, MessageType banType) {
 		String[] command = message.split("\\s");
+		System.out.println("Longitud: "+command.length);
 		String username = null;
-		if (command.length > 2) {
+		if (command.length >= 2) {
 			int counter = 0;
 			for (String word : command) {
-				if (!word.equals("\\s")) {
+				if (!word.equals("")) {
 					counter++;
+					if (counter == 2) {
+						username = word;
+						break;
+					}
 				}
-				if (counter == 2)
-					username = word;
 			}
+		System.out.println("Mensaje enviado: "+ username);
 		}
 		return new ChatMessage(id, banType, username);
 	}
@@ -234,13 +242,12 @@ public class ChatClientImpl implements ChatClient {
 					// Imprimimos lo que recibimos del servidor
 					System.out.println("> " + message);
 				}
-			} catch (IOException e) {
-				System.err.println("No se obtiene respuesta del servidor: " + server);
 			} catch (ClassNotFoundException e) {
 				System.err.println("Error al recibir mensaje.");
+			} catch (IOException e) {
+				System.err.println("Te has desconectado del servidor " + server + ".");
+				carryOn = false;
 			}
 		}
-
 	}
-
 }

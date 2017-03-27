@@ -10,6 +10,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 
 import es.ubu.lsi.common.ChatMessage;
 import es.ubu.lsi.common.ChatMessage.MessageType;
@@ -30,7 +31,7 @@ public class ChatServerImpl implements ChatServer {
 	/**
 	 * Id del cliente.
 	 */
-	private int clientId;
+	private static int clientId;
 
 	/**
 	 * Fecha.
@@ -78,10 +79,9 @@ public class ChatServerImpl implements ChatServer {
 		try {
 			serverSocket = new ServerSocket(port);
 			alive = true;
-			usersList = new ArrayList<ChatServerImpl.ServerThreadForClient>();
+			usersList = new ArrayList<ServerThreadForClient>();
 			sdf = new SimpleDateFormat("HH:mm:ss");
 			System.out.println("Servidor iniciado...");
-			System.out.println(sdf.toString());
 		} catch (IOException e) {
 			System.err.println("No se puede iniciar el servidor.");
 		}
@@ -89,16 +89,22 @@ public class ChatServerImpl implements ChatServer {
 		while (alive) {
 			try {
 				clientSocket = serverSocket.accept();
-				System.out.println("Cliente aceptado.");
+				System.out.println("# Cliente aceptado.");
 				ServerThreadForClient clientThread = new ServerThreadForClient(clientSocket, ++clientId);
 				usersList.add(clientThread);
 				clientThread.start();
 			} catch (IOException e) {
-				System.err.println("Cliente no aceptado.");
+				System.err.println("# Cliente no aceptado.");
 			}
 		}
-		// Apagar el servidor
-		System.exit(1);
+		try {
+			serverSocket.close();
+		} catch (IOException e) {
+			System.err.println("No se puede cerrar el servidor.");
+		} finally {
+			// Apagar el servidor
+			System.exit(1);
+		}
 	}
 
 	/**
@@ -121,8 +127,43 @@ public class ChatServerImpl implements ChatServer {
 	 *            mensaje a mandar
 	 */
 	public void broadcast(ChatMessage message) {
-		// TODO Auto-generated method stub
+		String fecha = sdf.format(new Date());
+		String msg = fecha + " " + message.getMessage();
 
+		System.out.println(msg);
+
+		for (ServerThreadForClient client : usersList) {
+			try {
+				if (client.getClientId() != message.getId()) {
+					client.out.writeObject(msg);
+				}
+			} catch (IOException e) {
+				System.out.println("# " + client.getUsername() + "No recibe mensajes.");
+			}
+		}
+	}
+
+	/**
+	 * Manda un mensaje a todos los clientes.
+	 * 
+	 * @param message
+	 *            mensaje a mandar
+	 */
+	public void broadcast(ChatMessage message, String emisor) {
+		String fecha = sdf.format(new Date());
+		String msg = fecha + " " + emisor + ": " + message.getMessage();
+
+		System.out.println(msg);
+
+		for (ServerThreadForClient client : usersList) {
+			try {
+				if (client.getClientId() != message.getId()) {
+					client.out.writeObject(msg);
+				}
+			} catch (IOException e) {
+				System.out.println("# " + client.getUsername() + "No recibe mensajes.");
+			}
+		}
 	}
 
 	/**
@@ -211,10 +252,10 @@ public class ChatServerImpl implements ChatServer {
 		 */
 		private ObjectOutputStream out;
 
-		// /**
-		// * Socket del cliente.
-		// */
-		// private Socket clientSocket;
+		/**
+		 * Socket del cliente.
+		 */
+		private Socket clientSocket;
 
 		/**
 		 * Si el usuario está baneado o no.
@@ -227,12 +268,15 @@ public class ChatServerImpl implements ChatServer {
 		private boolean finalizado;
 
 		public ServerThreadForClient(Socket clientSocket, int id) {
-			// this.clientSocket = clientSocket;
+			this.clientSocket = clientSocket;
 			this.id = id;
 			this.banned = false;
 			try {
 				this.out = new ObjectOutputStream(clientSocket.getOutputStream());
 				this.in = new ObjectInputStream(clientSocket.getInputStream());
+				this.username = (String) in.readObject();
+			} catch (ClassNotFoundException e) {
+				System.err.println("No se puede recuperar el nombre de usuario.");
 			} catch (IOException e) {
 				System.err.println("No se puede establecer comunicación cliente-servidor");
 			}
@@ -245,6 +289,9 @@ public class ChatServerImpl implements ChatServer {
 		 */
 		@Override
 		public void run() {
+			broadcast(new ChatMessage(getClientId(), MessageType.MESSAGE, getUsername() + " se conectó."));
+
+			// Acciones a realizar mientras el hilo está escuchando
 			while (!finalizado) {
 				ChatMessage message = null;
 				try {
@@ -260,8 +307,15 @@ public class ChatServerImpl implements ChatServer {
 					remove(getClientId());
 					break;
 				case MESSAGE:
-					if (!banned)
-						broadcast(message);
+					if (!banned) {
+						broadcast(message, getUsername());
+					} else {
+						try {
+							out.writeObject("Estas baneado, no puede comentar.");
+						} catch (IOException e) {
+							System.err.println("No se puede enviar mensaje de baneo.");
+						}
+					}
 					break;
 				case BAN:
 					if (banUnbanUser(message.getMessage(), ChatMessage.MessageType.BAN))
@@ -296,7 +350,7 @@ public class ChatServerImpl implements ChatServer {
 		 * @return client id
 		 */
 		public int getClientId() {
-			return id;
+			return this.id;
 		}
 
 		/**
@@ -323,12 +377,14 @@ public class ChatServerImpl implements ChatServer {
 		 */
 		public void finalizarCliente() {
 			try {
+				// Cerramos canales de entrada y salida
 				this.out.close();
 				this.in.close();
+				clientSocket.close();
 			} catch (IOException e) {
 				System.err.println("No se puede eliminar conexión con el cliente.");
 			} finally {
-				System.out.println("Desconectando cliente: " + getUsername() + ".");
+				System.out.println("# Desconectando cliente: " + getUsername() + ".");
 				// Cerramos el hilo
 				this.interrupt();
 			}
