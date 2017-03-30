@@ -96,7 +96,7 @@ public class ChatClientImpl implements ChatClient {
 			out.writeObject(username);
 
 			// Informamos de la conexion
-			System.out.println("Conexión satisfactoria");
+//			System.out.println("Conexión satisfactoria");
 		} catch (UnknownHostException e) {
 			System.err.println("No se puede conectar con el servidor: " + server);
 			return false;
@@ -115,6 +115,7 @@ public class ChatClientImpl implements ChatClient {
 	 */
 	public void sendMessage(ChatMessage msg) {
 		try {
+			this.out.reset();
 			this.out.writeObject(msg);
 		} catch (IOException e) {
 			System.out.println("No se puede enviar el mensaje");
@@ -148,16 +149,16 @@ public class ChatClientImpl implements ChatClient {
 		String hostName = "localhost";
 		int portNumber = 1500;
 		String username = null;
+		Scanner scan = new Scanner(System.in);
 
 		// Manejo de argumentos
 		if (args.equals(null) || args.length != 2) {
-			System.out.println(
-					"Por favor incluye una de las dos opciones de los siguientes argumentos en el mismo orden que se cita:");
-			System.out.println("1º. IP del servidor y nombre de usuario.");
-			System.out.println("2º. nombre de usuario.");
-			System.exit(1);
+			System.out.println("Introduce un nombre de usuario: ");
+			username = scan.nextLine();
+
 		} else if (args.length == 1) {
 			username = args[0];
+			
 		} else if (args.length == 2) {
 			hostName = args[0];
 			username = args[1];
@@ -167,10 +168,20 @@ public class ChatClientImpl implements ChatClient {
 		ChatClientImpl cliente = new ChatClientImpl(hostName, portNumber, username);
 
 		if (cliente.start()) {
-			Scanner scan = new Scanner(System.in);
+			System.out.println("\n\n            · BIENVENIDO ·\n");
+			System.out.println("Te has logeado correctamente en el chat.\n");
+			System.out.println("Tu nombre de usuario es: " + username);			
+			System.out.println("Los comandos disponibles son: \n");
+			System.out.println("    - BAN ");
+			System.out.println("    - UNBN ");
+			System.out.println("    - LOGOUT ");
+			System.out.println("________________________________________\n");
+			
+			Scanner scan2 = new Scanner(System.in);
+			
 			while (carryOn) {
 				System.out.print("> ");
-				String message = scan.nextLine();
+				String message = scan2.nextLine();
 				if (message.equalsIgnoreCase("LOGOUT")) {
 					cliente.sendMessage(new ChatMessage(id, ChatMessage.MessageType.LOGOUT, ""));
 					carryOn = false;
@@ -187,6 +198,7 @@ public class ChatClientImpl implements ChatClient {
 			System.out.println("Desconectando. Pulsa intro tecla para cerrar...");
 			scan.nextLine();
 			scan.close();
+			scan2.close();
 		} else {
 			System.err.println("No se puede arrancar el cliente.");
 		}
@@ -235,7 +247,10 @@ public class ChatClientImpl implements ChatClient {
 		 */
 		public void run() {
 			String message;
+			
 			try {
+				//Aqui establecemos el nuevo id del mensaje que nos ha devuelto el hilo del server.
+				id = ((ChatMessage) in.readObject()).getId();
 				while ((message = (String) in.readObject()) != null) {
 					// Imprimimos lo que recibimos del servidor
 					System.out.println("> " + message);

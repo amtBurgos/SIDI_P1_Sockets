@@ -31,7 +31,7 @@ public class ChatServerImpl implements ChatServer {
 	/**
 	 * Id del cliente.
 	 */
-	private static int clientId;
+	private static int clientId=0;
 
 	/**
 	 * Fecha.
@@ -82,6 +82,7 @@ public class ChatServerImpl implements ChatServer {
 			usersList = new ArrayList<ServerThreadForClient>();
 			sdf = new SimpleDateFormat("HH:mm:ss");
 			System.out.println("Servidor iniciado...");
+			System.out.println("________________________________________\n");
 		} catch (IOException e) {
 			System.err.println("No se puede iniciar el servidor.");
 		}
@@ -89,8 +90,8 @@ public class ChatServerImpl implements ChatServer {
 		while (alive) {
 			try {
 				clientSocket = serverSocket.accept();
-				System.out.println("# Cliente aceptado.");
-				ServerThreadForClient clientThread = new ServerThreadForClient(clientSocket, ++clientId);
+				ServerThreadForClient clientThread = new ServerThreadForClient(clientSocket, clientId++);
+//				System.out.println("# Cliente: " + clientThread.username + " - ha sido aceptado.");
 				usersList.add(clientThread);
 				clientThread.start();
 			} catch (IOException e) {
@@ -126,7 +127,7 @@ public class ChatServerImpl implements ChatServer {
 	 * @param message
 	 *            mensaje a mandar
 	 */
-	public void broadcast(ChatMessage message) {
+	public synchronized void broadcast(ChatMessage message) {
 		String fecha = sdf.format(new Date());
 		String msg = fecha + " " + message.getMessage();
 
@@ -148,8 +149,10 @@ public class ChatServerImpl implements ChatServer {
 	 * 
 	 * @param message
 	 *            mensaje a mandar
+	 *            
+	 * @param emisor emisor que envia el mensaje
 	 */
-	public void broadcast(ChatMessage message, String emisor) {
+	public synchronized void broadcast(ChatMessage message, String emisor) {
 		String fecha = sdf.format(new Date());
 		String msg = fecha + " " + emisor + ": " + message.getMessage();
 
@@ -169,7 +172,7 @@ public class ChatServerImpl implements ChatServer {
 	/**
 	 * Elimina un cliente de la lista.
 	 * 
-	 * @param id
+	 * @param id id del cliente que vamos a eliminar
 	 */
 	public void remove(int id) {
 		ServerThreadForClient cliente = null;
@@ -268,18 +271,23 @@ public class ChatServerImpl implements ChatServer {
 		private boolean finalizado;
 
 		public ServerThreadForClient(Socket clientSocket, int id) {
+
 			this.clientSocket = clientSocket;
 			this.id = id;
 			this.banned = false;
+			
 			try {
 				this.out = new ObjectOutputStream(clientSocket.getOutputStream());
 				this.in = new ObjectInputStream(clientSocket.getInputStream());
 				this.username = (String) in.readObject();
+				
 			} catch (ClassNotFoundException e) {
 				System.err.println("No se puede recuperar el nombre de usuario.");
+				
 			} catch (IOException e) {
 				System.err.println("No se puede establecer comunicación cliente-servidor");
 			}
+			
 			finalizado = false;
 		}
 
@@ -290,6 +298,14 @@ public class ChatServerImpl implements ChatServer {
 		@Override
 		public void run() {
 			broadcast(new ChatMessage(getClientId(), MessageType.MESSAGE, getUsername() + " se conectó."));
+			
+			//Esto es donde le pasamos al cliente, su nuevo id.
+			try {
+				out.writeObject(new ChatMessage(id, ChatMessage.MessageType.MESSAGE, username));
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
 
 			// Acciones a realizar mientras el hilo está escuchando
 			while (!finalizado) {

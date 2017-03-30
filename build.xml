@@ -5,7 +5,7 @@
 	<!-- Properties of the project... -->
 
 	<!-- Dir properties -->
-	<property name="src.dir" value="${basedir}/src" />
+	<property name="src.dir" value="${basedir}/src/main/java" />
 	<property name="build.dir" value="${basedir}/build" />
 	<property name="dist.dir" value="${basedir}/dist" />
 	<property name="doc.dir" value="${basedir}/doc" />

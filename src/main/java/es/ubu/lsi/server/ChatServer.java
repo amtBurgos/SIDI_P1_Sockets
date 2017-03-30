@@ -26,15 +26,14 @@ public interface ChatServer {
 	/**
 	 * Manda un mensaje a todos los clientes.
 	 * 
-	 * @param message
-	 *            mensaje a mandar
+	 * @param message mensaje a mandar
 	 */
 	public void broadcast(ChatMessage message);
 
 	/**
 	 * Elimina un cliente de la lista.
 	 * 
-	 * @param id
+	 * @param id id
 	 */
 	public void remove(int id);
 }
