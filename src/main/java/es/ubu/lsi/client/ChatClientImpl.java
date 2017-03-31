@@ -96,7 +96,7 @@ public class ChatClientImpl implements ChatClient {
 			out.writeObject(username);
 
 			// Informamos de la conexion
-//			System.out.println("Conexión satisfactoria");
+			// System.out.println("Conexión satisfactoria");
 		} catch (UnknownHostException e) {
 			System.err.println("No se puede conectar con el servidor: " + server);
 			return false;
@@ -158,7 +158,7 @@ public class ChatClientImpl implements ChatClient {
 
 		} else if (args.length == 1) {
 			username = args[0];
-			
+
 		} else if (args.length == 2) {
 			hostName = args[0];
 			username = args[1];
@@ -170,15 +170,15 @@ public class ChatClientImpl implements ChatClient {
 		if (cliente.start()) {
 			System.out.println("\n\n            · BIENVENIDO ·\n");
 			System.out.println("Te has logeado correctamente en el chat.\n");
-			System.out.println("Tu nombre de usuario es: " + username);			
+			System.out.println("Tu nombre de usuario es: " + username);
 			System.out.println("Los comandos disponibles son: \n");
 			System.out.println("    - BAN ");
 			System.out.println("    - UNBN ");
 			System.out.println("    - LOGOUT ");
 			System.out.println("________________________________________\n");
-			
+
 			Scanner scan2 = new Scanner(System.in);
-			
+
 			while (carryOn) {
 				System.out.print("> ");
 				String message = scan2.nextLine();
@@ -247,13 +247,15 @@ public class ChatClientImpl implements ChatClient {
 		 */
 		public void run() {
 			String message;
-			
+
 			try {
-				//Aqui establecemos el nuevo id del mensaje que nos ha devuelto el hilo del server.
+				// Aqui establecemos el nuevo id del mensaje que nos ha devuelto
+				// el hilo del server.
 				id = ((ChatMessage) in.readObject()).getId();
 				while ((message = (String) in.readObject()) != null) {
 					// Imprimimos lo que recibimos del servidor
-					System.out.println("> " + message);
+					System.out.println(message);
+					System.out.println("> ");
 				}
 			} catch (ClassNotFoundException e) {
 				System.err.println("Error al recibir mensaje.");

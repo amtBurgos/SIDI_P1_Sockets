@@ -31,7 +31,7 @@ public class ChatServerImpl implements ChatServer {
 	/**
 	 * Id del cliente.
 	 */
-	private static int clientId=0;
+	private static int clientId = 0;
 
 	/**
 	 * Fecha.
@@ -52,6 +52,11 @@ public class ChatServerImpl implements ChatServer {
 	 * Lista de usuarios conectados.
 	 */
 	private ArrayList<ServerThreadForClient> usersList;
+
+	/**
+	 * Lista con los nombres de usuarios.
+	 */
+	private ArrayList<String> userNamesList;
 
 	/**
 	 * Construye un servidor.
@@ -80,6 +85,7 @@ public class ChatServerImpl implements ChatServer {
 			serverSocket = new ServerSocket(port);
 			alive = true;
 			usersList = new ArrayList<ServerThreadForClient>();
+			userNamesList = new ArrayList<String>();
 			sdf = new SimpleDateFormat("HH:mm:ss");
 			System.out.println("Servidor iniciado...");
 			System.out.println("________________________________________\n");
@@ -91,7 +97,6 @@ public class ChatServerImpl implements ChatServer {
 			try {
 				clientSocket = serverSocket.accept();
 				ServerThreadForClient clientThread = new ServerThreadForClient(clientSocket, clientId++);
-//				System.out.println("# Cliente: " + clientThread.username + " - ha sido aceptado.");
 				usersList.add(clientThread);
 				clientThread.start();
 			} catch (IOException e) {
@@ -149,8 +154,9 @@ public class ChatServerImpl implements ChatServer {
 	 * 
 	 * @param message
 	 *            mensaje a mandar
-	 *            
-	 * @param emisor emisor que envia el mensaje
+	 * 
+	 * @param emisor
+	 *            emisor que envia el mensaje
 	 */
 	public synchronized void broadcast(ChatMessage message, String emisor) {
 		String fecha = sdf.format(new Date());
@@ -172,7 +178,8 @@ public class ChatServerImpl implements ChatServer {
 	/**
 	 * Elimina un cliente de la lista.
 	 * 
-	 * @param id id del cliente que vamos a eliminar
+	 * @param id
+	 *            id del cliente que vamos a eliminar
 	 */
 	public void remove(int id) {
 		ServerThreadForClient cliente = null;
@@ -186,6 +193,7 @@ public class ChatServerImpl implements ChatServer {
 				}
 			}
 			if (flag) {
+				userNamesList.remove(cliente.getUsername().toLowerCase());
 				usersList.remove(cliente);
 				System.out.println("El cliente no se encuentra conectado.");
 			}
@@ -275,19 +283,28 @@ public class ChatServerImpl implements ChatServer {
 			this.clientSocket = clientSocket;
 			this.id = id;
 			this.banned = false;
-			
+
 			try {
 				this.out = new ObjectOutputStream(clientSocket.getOutputStream());
 				this.in = new ObjectInputStream(clientSocket.getInputStream());
 				this.username = (String) in.readObject();
-				
+
+				// Si el usuario ya esta registrado pues no lo aceptamos
+				if (userNamesList.contains(username.toLowerCase())) {
+					this.out.writeObject("Ya hay un usuario registrado con ese nombre.");
+					remove(id);
+					finalizarCliente();
+				} else {
+					userNamesList.add(username.toLowerCase());
+				}
+
 			} catch (ClassNotFoundException e) {
 				System.err.println("No se puede recuperar el nombre de usuario.");
-				
+
 			} catch (IOException e) {
 				System.err.println("No se puede establecer comunicación cliente-servidor");
 			}
-			
+
 			finalizado = false;
 		}
 
@@ -298,8 +315,8 @@ public class ChatServerImpl implements ChatServer {
 		@Override
 		public void run() {
 			broadcast(new ChatMessage(getClientId(), MessageType.MESSAGE, getUsername() + " se conectó."));
-			
-			//Esto es donde le pasamos al cliente, su nuevo id.
+
+			// Esto es donde le pasamos al cliente, su nuevo id.
 			try {
 				out.writeObject(new ChatMessage(id, ChatMessage.MessageType.MESSAGE, username));
 			} catch (IOException e1) {
